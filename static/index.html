@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DART 재무실적 조회</title>
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#fff; --ink:#18212b; --muted:#5d6b7a; --line:#d8dee5;
+  --accent:#0d5c63; --accent-ink:#fff;
+  --cfs:#0d5c63; --cfs-bg:#dff1f1; --ofs:#8a5a00; --ofs-bg:#fbefd2; --mix:#5a3f9a; --mix-bg:#ebe4fa;
+  --err:#a3262a; --err-bg:#fbe4e4; --warn:#8a5a00; --warn-bg:#fbefd2;
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#10161c; --surface:#18212b; --ink:#e6ebf0; --muted:#98a5b3; --line:#2b3744;
+  --accent:#5cc2c9; --accent-ink:#0b1a1c;
+  --cfs:#7fd3d8; --cfs-bg:#12383b; --ofs:#f0c46a; --ofs-bg:#3b2d0e; --mix:#c3b0f2; --mix-bg:#2c2347;
+  --err:#ff9a9d; --err-bg:#3d1a1c; --warn:#f0c46a; --warn-bg:#3b2d0e;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55}
+header{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 28px;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
+header .sub{color:var(--muted);font-size:13px}
+main{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+section[hidden]{display:none}
+h2{font-size:17px;margin:0 0 4px}
+.hint{color:var(--muted);font-size:13px;margin:0 0 14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px 20px;margin-bottom:18px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:7px 14px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;padding:10px 26px}
+button:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=text],input[type=password]{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:7px 9px}
+.search{position:relative;max-width:520px}
+.search input{width:100%;padding:10px 12px}
+.suggest{position:absolute;z-index:5;left:0;right:0;top:100%;margin-top:2px;background:var(--surface);border:1px solid var(--line);border-radius:6px;max-height:340px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.suggest button{display:flex;width:100%;gap:10px;align-items:center;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:9px 12px}
+.suggest button:last-child{border-bottom:0}
+.suggest button:hover,.suggest button.on{background:var(--bg)}
+.suggest .nm{flex:1;font-weight:600}.suggest .cd{color:var(--muted);font-variant-numeric:tabular-nums}
+.suggest .none{padding:12px;color:var(--muted)}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;white-space:nowrap}
+.tag.kospi{background:var(--cfs-bg);color:var(--cfs)}.tag.kosdaq{background:var(--mix-bg);color:var(--mix)}
+.tag.cfs{background:var(--cfs-bg);color:var(--cfs)}.tag.ofs{background:var(--ofs-bg);color:var(--ofs)}.tag.mix{background:var(--mix-bg);color:var(--mix)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;font-size:13px;color:var(--muted);background:transparent}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.cond td select{width:100%;min-width:132px}
+.cond th select{width:100%;min-width:132px;font-size:13px}
+.empty{padding:28px 10px;text-align:center;color:var(--muted)}
+.actions{display:flex;gap:14px;align-items:center;margin-top:16px;flex-wrap:wrap}
+.status{color:var(--muted);font-size:13px}
+.val{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.val.neg{color:var(--err)}
+.per{font-size:12px;color:var(--muted)}
+.errcell{color:var(--err);font-weight:600}
+.errcell small{display:block;font-weight:400;color:var(--muted);font-size:12px;max-width:230px;overflow-wrap:anywhere;margin-left:auto}
+.banner{background:var(--warn-bg);color:var(--warn);padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:14px}
+.banner input{width:340px;max-width:100%;margin:0 6px}
+.err-banner{background:var(--err-bg);color:var(--err);padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:14px}
+.back{margin-bottom:14px}
+.card h3{margin:0 0 2px;font-size:16px}
+.qtable td.chg{background:var(--warn-bg);box-shadow:inset 3px 0 0 var(--warn)}
+.qtable tr.total td{font-weight:700;border-top:2px solid var(--ink)}
+.notes{font-size:13px;color:var(--muted);margin-top:12px}
+.notes p{margin:4px 0}
+details{border:1px solid var(--line);border-radius:5px;margin-top:8px;background:var(--bg)}
+summary{cursor:pointer;padding:8px 12px;font-weight:600;font-size:14px}
+.calc{padding:4px 14px 12px;font-size:13px}
+.calc .row{padding:8px 0;border-top:1px dashed var(--line)}
+.calc .row:first-child{border-top:0}
+.calc dl{display:grid;grid-template-columns:120px 1fr;gap:2px 10px;margin:4px 0}
+.calc dt{color:var(--muted)}.calc dd{margin:0;word-break:break-all}
+.calc a{color:var(--accent)}
+.sticky-load{display:none;align-items:center;gap:10px;color:var(--muted)}
+.sticky-load.on{display:flex}
+.spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>DART 재무실적 조회</h1>
+  <span class="sub">KOSPI·KOSDAQ 정기공시 기반 · 매출액 / 영업이익 / 당기순이익 · 단위 원</span>
+</header>
+<main>
+  <div id="keybanner" class="banner" hidden>
+    DART API 키가 필요합니다.
+    <input type="password" id="keyinput" placeholder="OpenDART 인증키 40자리" autocomplete="off">
+    <button id="keysave">키 저장</button>
+  </div>
+  <div id="globalerr" class="err-banner" hidden></div>
+
+  <!-- 화면 1 -->
+  <section id="s1">
+    <div class="panel">
+      <h2>종목 검색</h2>
+      <p class="hint">종목명 또는 6자리 종목코드를 입력하고 목록에서 선택하세요.</p>
+      <div class="search">
+        <input type="text" id="q" placeholder="예: 삼성전자 또는 005930" autocomplete="off" aria-label="종목 검색">
+        <div id="suggest" class="suggest" hidden></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>조회조건</h2>
+      <p class="hint">종목마다, 재무항목마다 조회기간을 따로 정할 수 있습니다. 열 맨 위의 선택으로 모든 종목에 한 번에 적용할 수 있습니다.</p>
+      <div class="tablewrap">
+      <table class="cond" id="cond">
+        <thead>
+          <tr><th>종목명</th><th>종목코드</th>
+            <th>매출액</th><th>영업이익</th><th>당기순이익</th><th></th></tr>
+          <tr id="bulkrow" hidden>
+            <th></th><th></th>
+            <th><select data-bulk="revenue" aria-label="매출액 전체 적용"></select></th>
+            <th><select data-bulk="operating_income" aria-label="영업이익 전체 적용"></select></th>
+            <th><select data-bulk="net_income" aria-label="당기순이익 전체 적용"></select></th>
+            <th></th></tr>
+        </thead>
+        <tbody id="condbody"></tbody>
+      </table>
+      </div>
+      <div class="actions">
+        <button class="primary" id="run" disabled>검색</button>
+        <div class="sticky-load" id="loading"><span class="spin"></span><span>DART 공시를 수집하고 있습니다. 종목당 수십 초 걸릴 수 있습니다.</span></div>
+        <span class="status" id="runstatus"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 화면 2 -->
+  <section id="s2" hidden>
+    <button class="back" id="back1">← 조회조건으로</button>
+    <div class="panel">
+      <h2>재무실적 조회 결과</h2>
+      <p class="hint" id="resmeta"></p>
+      <div style="margin:0 0 14px"><button id="export">엑셀로 내보내기</button> <span class="status" id="exportstatus"></span></div>
+      <div class="tablewrap">
+      <table id="restable">
+        <thead><tr><th>종목명</th><th>종목코드</th><th>재무구분</th>
+          <th class="num">매출액</th><th class="num">영업이익</th><th class="num">당기순이익</th><th></th></tr></thead>
+        <tbody id="resbody"></tbody>
+      </table>
+      </div>
+      <p class="notes" id="resnotes"></p>
+    </div>
+  </section>
+
+  <!-- 화면 3 -->
+  <section id="s3" hidden>
+    <button class="back" id="back2">← 결과로</button>
+    <div id="detail"></div>
+  </section>
+</main>
+
+<script>
+const ITEMS=[["revenue","매출액"],["operating_income","영업이익"],["net_income","당기순이익"]];
+const PERIOD=[["FY","최근 사업연도"],["TTM","최근 4개 분기"]];
+const state={selected:[],data:null};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>n==null?"":BigInt(n).toLocaleString("ko-KR");
+const won=n=>n==null?"":Number(n).toLocaleString("ko-KR")+"원";
+function show(id){["s1","s2","s3"].forEach(s=>$("#"+s).hidden=(s!==id));window.scrollTo(0,0)}
+function gerr(msg){const e=$("#globalerr");e.hidden=!msg;e.textContent=msg||""}
+async function api(path,opt){
+  const r=await fetch(path,opt);let j={};
+  try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(j.error||("요청 실패 ("+r.status+")"));
+  return j;
+}
+
+/* ---------- 키 ---------- */
+api("/api/status").then(s=>{$("#keybanner").hidden=s.has_key}).catch(()=>{});
+$("#keysave").onclick=async()=>{
+  try{await api("/api/key",{method:"POST",body:JSON.stringify({key:$("#keyinput").value})});
+    $("#keybanner").hidden=true;gerr("")}catch(e){gerr(e.message)}
+};
+
+/* ---------- 화면 1: 검색 ---------- */
+let timer=null,seq=0,hits=[],cursor=-1;
+const qEl=$("#q"),sg=$("#suggest");
+qEl.addEventListener("input",()=>{
+  clearTimeout(timer);const v=qEl.value.trim();
+  if(!v){sg.hidden=true;return}
+  timer=setTimeout(()=>doSearch(v),250);
+});
+qEl.addEventListener("keydown",e=>{
+  if(sg.hidden)return;
+  if(e.key==="ArrowDown"){cursor=Math.min(cursor+1,hits.length-1);hl();e.preventDefault()}
+  else if(e.key==="ArrowUp"){cursor=Math.max(cursor-1,0);hl();e.preventDefault()}
+  else if(e.key==="Enter"&&hits[cursor]){addCorp(hits[cursor]);e.preventDefault()}
+  else if(e.key==="Escape"){sg.hidden=true}
+});
+document.addEventListener("click",e=>{if(!e.target.closest(".search"))sg.hidden=true});
+function hl(){[...sg.children].forEach((c,i)=>c.classList.toggle("on",i===cursor))}
+async function doSearch(v){
+  const my=++seq;sg.hidden=false;sg.innerHTML='<div class="none">검색 중…</div>';
+  try{
+    const r=await api("/api/search?q="+encodeURIComponent(v));
+    if(my!==seq)return;
+    hits=r.results;cursor=hits.length?0:-1;gerr("");
+    if(!hits.length){sg.innerHTML='<div class="none">KOSPI·KOSDAQ 상장 종목에서 찾지 못했습니다.</div>';return}
+    sg.innerHTML=hits.map((h,i)=>`<button type="button" data-i="${i}"><span class="nm">${esc(h.corp_name)}</span><span class="cd">${esc(h.stock_code)}</span><span class="tag ${h.market==="KOSPI"?"kospi":"kosdaq"}">${h.market}</span></button>`).join("");
+    hl();
+    [...sg.children].forEach(b=>b.onclick=()=>addCorp(hits[+b.dataset.i]));
+  }catch(e){if(my===seq){sg.innerHTML=`<div class="none">${esc(e.message)}</div>`}}
+}
+function addCorp(c){
+  sg.hidden=true;qEl.value="";
+  if(state.selected.some(s=>s.corp_code===c.corp_code)){
+    $("#runstatus").textContent=`${c.corp_name}은(는) 이미 추가되어 있습니다.`;return}
+  $("#runstatus").textContent="";
+  state.selected.push({...c,periods:{revenue:"FY",operating_income:"FY",net_income:"FY"}});
+  renderCond();
+}
+
+/* ---------- 조회조건 테이블 ---------- */
+function sel(opts,val,attrs){return `<select ${attrs}>${opts.map(([v,l])=>`<option value="${v}" ${v===val?"selected":""}>${l}</option>`).join("")}</select>`}
+function renderCond(){
+  const has=state.selected.length>0;
+  $("#bulkrow").hidden=!has;$("#run").disabled=!has;
+  $("#condbody").innerHTML=has?state.selected.map((s,i)=>`<tr>
+    <td><strong>${esc(s.corp_name)}</strong> <span class="tag ${s.market==="KOSPI"?"kospi":"kosdaq"}">${s.market}</span></td>
+    <td style="font-variant-numeric:tabular-nums">${esc(s.stock_code)}</td>
+    ${ITEMS.map(([k,l])=>`<td>${sel(PERIOD,s.periods[k],`data-i="${i}" data-k="${k}" aria-label="${esc(s.corp_name)} ${l}"`)}</td>`).join("")}
+    <td><button data-del="${i}" aria-label="${esc(s.corp_name)} 삭제">삭제</button></td></tr>`).join("")
+    :`<tr><td colspan="6" class="empty">위에서 종목을 검색해 추가하세요.</td></tr>`;
+  document.querySelectorAll("#condbody select").forEach(el=>el.onchange=()=>{state.selected[+el.dataset.i].periods[el.dataset.k]=el.value});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{state.selected.splice(+b.dataset.del,1);renderCond()});
+}
+document.querySelectorAll("[data-bulk]").forEach(el=>{
+  el.innerHTML='<option value="">전체 적용…</option>'+PERIOD.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+  el.onchange=()=>{if(!el.value)return;state.selected.forEach(s=>s.periods[el.dataset.bulk]=el.value);el.value="";renderCond()};
+});
+
+/* ---------- 검색 실행 ---------- */
+$("#run").onclick=async()=>{
+  if(!state.selected.length)return;
+  $("#run").disabled=true;$("#loading").classList.add("on");$("#runstatus").textContent="";gerr("");
+  try{
+    state.data=await api("/api/query",{method:"POST",body:JSON.stringify({items:state.selected})});
+    renderResults();show("s2");
+  }catch(e){gerr(e.message)}
+  finally{$("#run").disabled=!state.selected.length;$("#loading").classList.remove("on")}
+};
+$("#export").onclick=async()=>{
+  if(!state.data)return;
+  const b=$("#export"),st=$("#exportstatus");b.disabled=true;st.textContent="엑셀 파일을 만들고 있습니다…";
+  try{
+    const r=await fetch("/api/export",{method:"POST",body:JSON.stringify(state.data)});
+    if(!r.ok)throw new Error("내보내기 실패 ("+r.status+")");
+    const blob=await r.blob(),a=document.createElement("a"),t=new Date(),p=n=>String(n).padStart(2,"0");
+    a.href=URL.createObjectURL(blob);
+    a.download=`DART_재무실적_${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}_${p(t.getHours())}${p(t.getMinutes())}.xlsx`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    st.textContent="다운로드했습니다. (시트: 재무실적 결과 / 분기별 상세 / 계산과정)";
+  }catch(e){st.textContent=e.message}
+  finally{b.disabled=false}
+};
+$("#back1").onclick=()=>show("s1");
+$("#back2").onclick=()=>show("s2");
+
+/* ---------- 화면 2 ---------- */
+const basisTag=b=>!b?"":`<span class="tag ${b==="연결"?"cfs":b==="개별"?"ofs":"mix"}">${esc(b)}</span>`;
+function cell(r){
+  if(!r)return "-";
+  if(r.status!=="verified"||r.value==null){
+    const lab=r.status==="unavailable"?"산출 불가":"검증 필요";
+    const full=r.message||"",short=full.length>90?full.slice(0,90)+"… (상세조회 참조)":full;
+    return `<div class="errcell" title="${esc(full)}">${lab}<small>${esc(short)}</small></div>`;
+  }
+  const neg=r.value<0;
+  return `<div class="val ${neg?"neg":""}">${fmt(r.value)}</div>
+    <div class="per">${esc(r.period_label||"")}</div>
+    <div>${r.mixed?'<span class="tag mix">혼합기준</span>':(r.mode==="FY"?basisTag(r.basis):"")}${r.fallback?' <span class="tag warn" title="연결 손익계산서에 지배기업 소유주 귀속 당기순이익이 없어 대체 항목을 사용했습니다. 상세조회에서 확인하세요.">대체기준</span>':""}</div>`;
+}
+function renderResults(){
+  const d=state.data;
+  $("#resmeta").textContent=`검색 시점 ${d.searched_at.replace("T"," ")} · 단위 ${d.unit} · 조회 실패 항목은 0이 아니라 오류 상태로 표시됩니다.`;
+  $("#resbody").innerHTML=d.results.map((r,i)=>{
+    if(r.error)return `<tr><td><strong>${esc(r.corp_name)}</strong></td><td>${esc(r.stock_code)}</td><td colspan="5" class="errcell">조회 실패<small style="max-width:none">${esc(r.error)}</small></td></tr>`;
+    const bd=r.basis_display?basisTag(r.basis_display):"";
+    const mix=r.mixed_flag?' <span class="tag warn">혼합기간 포함</span>':"";
+    return `<tr><td><strong>${esc(r.corp_name)}</strong><div class="per">${esc(r.market||"")}</div></td>
+      <td style="font-variant-numeric:tabular-nums">${esc(r.stock_code)}</td>
+      <td>${bd}${mix}${r.has_ttm&&r.basis_changes.length?'<div class="per">연결·개별 변경 있음</div>':""}</td>
+      ${ITEMS.map(([k])=>`<td class="num">${cell(r.items[k])}</td>`).join("")}
+      <td>${r.has_ttm?`<button data-detail="${i}">상세조회</button>`:'<span class="per">연간만 조회</span>'}</td></tr>`;
+  }).join("");
+  document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>{renderDetail(+b.dataset.detail);show("s3")});
+  const anyMix=d.results.some(r=>r.mixed_flag);
+  $("#resnotes").textContent=anyMix?"※ 혼합기준 TTM은 각 분기에 적용된 공시기준의 단순 합산치로, 동일한 연결범위의 12개월 실적과 회계적 비교가능성에 차이가 있을 수 있습니다. 상세조회에서 분기별 기준과 변경 시점을 확인하세요.":"";
+}
+
+/* ---------- 화면 3 ---------- */
+function calcBlock(q,k,label){
+  const r=q.items[k];
+  if(!r)return "";
+  if(r.status!=="verified"){
+    return `<div class="row"><strong>${label}</strong> — <span class="errcell">${r.status==="unavailable"?"산출 불가":"검증 필요"}</span><div>${esc(r.message||"")}</div></div>`;
+  }
+  const srcs=(r.sources||[]).map(s=>`<dl>
+    <dt>사용 금액</dt><dd>${esc(s.role)}: ${won(s.amount)}${s.unit&&s.unit!=="원"?` <span class="per">(공시단위 ${esc(s.unit)} → 원 환산)</span>`:""}</dd>
+    <dt>공시 보고서</dt><dd>${esc(s.report_nm)} (회계기간 종료 ${esc(s.period_end)})</dd>
+    <dt>구분 / 계정</dt><dd>${esc(s.fs_label)}재무제표 · ${esc(s.account_nm)} (${esc(s.account_id||"")})</dd>
+    <dt>접수번호</dt><dd><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.rcept_no)}</a> (접수일 ${esc(s.rcept_dt||"")})</dd></dl>`).join("");
+  const nib=r.ni_basis?`<div>당기순이익 추출기준: ${r.fallback?'<span class="tag warn">대체 항목 사용</span> ':""}<strong>${esc(r.ni_basis)}</strong>${r.fallback_reason?`<div class="per">${esc(r.fallback_reason)}</div>`:""}</div>`:"";
+  return `<div class="row"><strong>${label}</strong> — ${r.method==="direct"?"직접 추출":"계산"} · ${won(r.value)}${nib}
+    ${r.formula?`<div>산식: ${esc(r.formula)}</div>`:""}${r.message?`<div class="per">${esc(r.message)}</div>`:""}${srcs}</div>`;
+}
+function renderDetail(i){
+  const r=state.data.results[i];
+  const qs=r.quarters;
+  const changedIdx=new Set();
+  qs.forEach((q,j)=>{if(j>0&&q.fs_div&&qs[j-1].fs_div&&q.fs_div!==qs[j-1].fs_div)changedIdx.add(j)});
+  const bodyRows=qs.map((q,j)=>{
+    const bcell=q.fs_div?`<span class="tag ${q.fs_div==="CFS"?"cfs":"ofs"}">${q.basis_label}</span>${changedIdx.has(j)?" <small>← 변경</small>":""}`:`<span class="errcell">판정 불가</span>`;
+    return `<tr><td>${esc(q.label)}<div class="per">${esc(q.period_start||"")} ~ ${esc(q.period_end||"")}</div></td>
+      <td class="${changedIdx.has(j)?"chg":""}">${bcell}</td>
+      ${ITEMS.map(([k])=>{const x=q.items[k];
+        const nib=(k==="net_income"&&x.status==="verified"&&x.ni_basis)?`<div class="per">${x.fallback?'<span class="tag warn">대체</span> ':""}${esc(x.ni_basis)}</div>`:"";
+        return `<td class="num">${x.status==="verified"?fmt(x.value)+nib:`<span class="errcell">${x.status==="unavailable"?"산출 불가":"검증 필요"}</span>`}</td>`}).join("")}</tr>`;
+  }).join("");
+  const tt=r.ttm;
+  const total=`<tr class="total"><td>최근 4개 분기 합계</td><td>${tt.revenue.basis?`<span class="tag ${tt.revenue.mixed?"mix":tt.revenue.basis==="연결"?"cfs":"ofs"}">${esc(tt.revenue.basis)}</span>`:""}</td>
+    ${ITEMS.map(([k])=>{const t=tt[k];return `<td class="num">${t.status==="verified"?fmt(t.value)+(t.fallback?`<div class="per"><span class="tag warn">대체기준 포함</span> ${esc((t.fallback_quarters||[]).join(", "))}</div>`:""):`<span class="errcell">${t.status==="unavailable"?"산출 불가":"검증 필요"}</span>`}</td>`}).join("")}</tr>`;
+  const notes=(r.notes||[]).map((n,j)=>`<p>주${j+1}) ${esc(n)}</p>`).join("");
+  const ttmErr=ITEMS.filter(([k])=>tt[k].status!=="verified").map(([k,l])=>`<p>※ ${l}: ${esc(tt[k].message||"")}</p>`).join("");
+  const changes=(r.basis_changes||[]).map(c=>`<p>변경: ${esc(c.from_label)} → ${esc(c.to_label)} (최초 확인 ${esc(c.first_quarter)}${c.evidence_report?`, <a href="${esc(c.evidence_report.url)}" target="_blank" rel="noopener">${esc(c.evidence_report.report_nm)}</a>`:""})
+    ${c.related_disclosures.length?`<br>참고 공시(사유 확정 아님): ${c.related_disclosures.map(d=>`<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.rcept_dt)} ${esc(d.report_nm)}</a>`).join(" / ")}`:""}</p>`).join("");
+  const calc=qs.map(q=>`<details><summary>${esc(q.label)} 계산 과정 · ${q.fs_div?q.basis_label+" 기준":"기준 판정 불가"}</summary><div class="calc">
+    ${q.basis_evidence?`<div class="per">재무제표 구분 근거: ${esc(q.basis_evidence)}</div>`:""}${q.basis_message?`<div class="errcell">${esc(q.basis_message)}</div>`:""}
+    ${q.report?`<div class="per">기준 보고서: <a href="${esc(q.report.url)}" target="_blank" rel="noopener">${esc(q.report.report_nm)}</a>${q.report.corrected?" (정정공시 반영)":""}</div>`:""}
+    ${ITEMS.map(([k,l])=>calcBlock(q,k,l)).join("")}</div></details>`).join("");
+  $("#detail").innerHTML=`<div class="panel card">
+    <h3>${esc(r.corp_name)} <span class="per">${esc(r.stock_code)} · ${esc(r.market||"")}</span></h3>
+    <p class="hint">최근 4개 분기 실적 · 단위 원 · 이 화면은 조회기간 설정과 관계없이 세 항목 모두 표시합니다.</p>
+    <div class="tablewrap"><table class="qtable"><thead><tr><th>회계분기</th><th>재무구분</th><th class="num">매출액</th><th class="num">영업이익</th><th class="num">당기순이익</th></tr></thead>
+    <tbody>${bodyRows}${total}</tbody></table></div>
+    <div class="notes">${notes}${changes}${ttmErr}
+      <p>당기순이익: 연결 분기는 지배기업 소유주 귀속 순이익, 개별 분기는 개별 당기순이익.</p></div>
+    ${calc}</div>`;
+}
+renderCond();
+</script>
+</body>
+</html>

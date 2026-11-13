@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: dart-agent
+    runtime: docker
+    plan: starter
+    envVars:
+      - key: DATA_SOURCE
+        value: web
+      - key: APP_PASSWORD      # 공개 URL 보호용 비밀번호 (Render 대시보드에서 값 입력)
+        sync: false
